@@ -16,6 +16,16 @@ public class FPSController : MonoBehaviour
 
     [Header("Jumping Stats")]
     public float jumpForce;
+    //Varaibles del GroundCheck
+    [SerializeField] GameObject groundCheck;
+    [SerializeField] bool isGrounded;
+    [SerializeField] float groundCheckRadius;
+    [SerializeField] LayerMask groundLayer;
+
+    [Header("Player State Bools")]
+    [SerializeField] bool isSprinting;
+    [SerializeField] bool isCrouching;
+
 
     //Referencias privadas (GetComponent)
     private Rigidbody playerRb;
@@ -31,6 +41,7 @@ public class FPSController : MonoBehaviour
         playerRb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
         camHolder = GameObject.Find("CameraHolder");
+        groundCheck = GameObject.Find("GroundCheck");
     }
 
     void Start()
@@ -43,7 +54,7 @@ public class FPSController : MonoBehaviour
 
     void Update()
     {
-        
+        isGrounded = Physics.CheckSphere(groundCheck.transform.position, groundCheckRadius, groundLayer);
     }
 
     private void FixedUpdate()
@@ -62,7 +73,7 @@ public class FPSController : MonoBehaviour
     {
         Vector3 currentVelocity = playerRb.velocity; //Velocidad actual del player
         Vector3 targetVelocity = new Vector3(moveInput.x, 0, moveInput.y); //Velocidad hacia la que queremos que se mueva el player
-        targetVelocity *= speed;
+        targetVelocity *= isCrouching ? crouchSpeed : (isSprinting ? sprintSpeed : speed);
 
         //Alinear la dirección con la orientación correcta (de local a global)
         targetVelocity = transform.TransformDirection(targetVelocity);
@@ -87,6 +98,15 @@ public class FPSController : MonoBehaviour
         camHolder.transform.eulerAngles = new Vector3(lookRotation, camHolder.transform.eulerAngles.y, camHolder.transform.eulerAngles.z);
     }
 
+    void Jump()
+    {
+        if (isGrounded)
+        {
+            playerRb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        }
+    }
+
+
     #region Input Methods
 
     public void OnMove(InputAction.CallbackContext context)
@@ -97,6 +117,36 @@ public class FPSController : MonoBehaviour
     public void OnLook(InputAction.CallbackContext context)
     {
         lookInput = context.ReadValue<Vector2>();
+    }
+
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            Jump();
+        }
+    }
+
+    public void OnCrouch(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            isCrouching = !isCrouching; //Cambia el bool al valor contrario que tenga en ese momento
+            anim.SetTrigger("CrouchState"); //Cada vez que pulsamos el input llamamos al animator
+        }
+
+    }
+
+    public void OnSprint(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            if (!isCrouching) isSprinting = true;
+        }
+        if (context.canceled)
+        {
+            isSprinting = false;
+        }
     }
     #endregion
 
